@@ -1,13 +1,13 @@
 ---
 name: d3-viz
-description: Creating interactive data visualisations using d3.js. This skill should be used when creating custom charts, graphs, network diagrams, geographic visualisations, or any complex SVG-based data visualisation that requires fine-grained control over visual elements, transitions, or interactions. Use this for bespoke visualisations beyond standard charting libraries, whether in React, Vue, Svelte, vanilla JavaScript, or any other environment.
+description: Creating interactive data visualisations using d3.js with Svelte 5. This skill should be used when creating custom charts, graphs, network diagrams, geographic visualisations, or any complex SVG-based data visualisation that requires fine-grained control over visual elements, transitions, or interactions. Use this for bespoke visualisations beyond standard charting libraries in Svelte 5 applications.
 ---
 
-# D3.js Visualisation
+# D3.js Visualisation with Svelte 5
 
 ## Overview
 
-This skill provides guidance for creating sophisticated, interactive data visualisations using d3.js. D3.js (Data-Driven Documents) excels at binding data to DOM elements and applying data-driven transformations to create custom, publication-quality visualisations with precise control over every visual element. The techniques work across any JavaScript environment, including vanilla JavaScript, React, Vue, Svelte, and other frameworks.
+This skill provides guidance for creating sophisticated, interactive data visualisations using d3.js with Svelte 5. D3.js (Data-Driven Documents) excels at binding data to DOM elements and applying data-driven transformations to create custom, publication-quality visualisations with precise control over every visual element. The techniques leverage Svelte 5's runes system (`$state`, `$effect`, `$props`) for reactive data binding.
 
 ## When to use d3.js
 
@@ -43,210 +43,268 @@ All modules (scales, axes, shapes, transitions, etc.) are accessible through the
 
 ### 2. Choose the integration pattern
 
-**Pattern A: Direct DOM manipulation (recommended for most cases)**
-Use d3 to select DOM elements and manipulate them imperatively. This works in any JavaScript environment:
+**Pattern A: Direct DOM manipulation with $effect (recommended for most cases)**
+Use d3 to select DOM elements and manipulate them imperatively within Svelte 5's `$effect` rune:
 
-```javascript
-function drawChart(data) {
-  if (!data || data.length === 0) return;
+```svelte
+<script>
+  import * as d3 from 'd3';
 
-  const svg = d3.select('#chart'); // Select by ID, class, or DOM element
+  let { data = [] } = $props();
+  let svgElement = $state();
 
-  // Clear previous content
-  svg.selectAll("*").remove();
+  $effect(() => {
+    if (!data || data.length === 0 || !svgElement) return;
 
-  // Set up dimensions
-  const width = 800;
-  const height = 400;
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const svg = d3.select(svgElement);
+    svg.selectAll("*").remove(); // Clear previous content
 
-  // Create scales, axes, and draw visualisation
-  // ... d3 code here ...
-}
+    // Set up dimensions
+    const width = 800;
+    const height = 400;
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
 
-// Call when data changes
-drawChart(myData);
+    // Create scales, axes, and draw visualisation
+    // ... d3 code here ...
+  });
+</script>
+
+<svg bind:this={svgElement} width="800" height="400"></svg>
 ```
 
-**Pattern B: Declarative rendering (for frameworks with templating)**
-Use d3 for data calculations (scales, layouts) but render elements via your framework:
+**Pattern B: Declarative rendering with Svelte templates**
+Use d3 for data calculations (scales, layouts) but render elements via Svelte's template syntax:
 
-```javascript
-function getChartElements(data) {
-  const xScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.value)])
-    .range([0, 400]);
+```svelte
+<script>
+  import * as d3 from 'd3';
 
-  return data.map((d, i) => ({
-    x: 50,
-    y: i * 30,
-    width: xScale(d.value),
-    height: 25
-  }));
-}
+  let { data = [] } = $props();
 
-// In React: {getChartElements(data).map((d, i) => <rect key={i} {...d} fill="steelblue" />)}
-// In Vue: v-for directive over the returned array
-// In vanilla JS: Create elements manually from the returned data
+  let chartElements = $derived(() => {
+    const xScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.value)])
+      .range([0, 400]);
+
+    return data.map((d, i) => ({
+      x: 50,
+      y: i * 30,
+      width: xScale(d.value),
+      height: 25
+    }));
+  });
+</script>
+
+<svg width="500" height="{data.length * 30}">
+  {#each chartElements as element, i}
+    <rect
+      x={element.x}
+      y={element.y}
+      width={element.width}
+      height={element.height}
+      fill="steelblue"
+    />
+  {/each}
+</svg>
 ```
 
-Use Pattern A for complex visualisations with transitions, interactions, or when leveraging d3's full capabilities. Use Pattern B for simpler visualisations or when your framework prefers declarative rendering.
+Use Pattern A for complex visualisations with transitions, interactions, or when leveraging d3's full capabilities. Use Pattern B for simpler visualisations where Svelte's declarative rendering is preferred.
 
 ### 3. Structure the visualisation code
 
-Follow this standard structure in your drawing function:
+Follow this standard structure in your Svelte 5 component:
 
-```javascript
-function drawVisualization(data) {
-  if (!data || data.length === 0) return;
+```svelte
+<script>
+  import * as d3 from 'd3';
 
-  const svg = d3.select('#chart'); // Or pass a selector/element
-  svg.selectAll("*").remove(); // Clear previous render
+  let { data = [] } = $props();
+  let svgElement = $state();
 
-  // 1. Define dimensions
-  const width = 800;
-  const height = 400;
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
+  $effect(() => {
+    if (!data || data.length === 0 || !svgElement) return;
 
-  // 2. Create main group with margins
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+    const svg = d3.select(svgElement);
+    svg.selectAll("*").remove(); // Clear previous render
 
-  // 3. Create scales
-  const xScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.x)])
-    .range([0, innerWidth]);
+    // 1. Define dimensions
+    const width = 800;
+    const height = 400;
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
 
-  const yScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.y)])
-    .range([innerHeight, 0]); // Note: inverted for SVG coordinates
+    // 2. Create main group with margins
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // 4. Create and append axes
-  const xAxis = d3.axisBottom(xScale);
-  const yAxis = d3.axisLeft(yScale);
+    // 3. Create scales
+    const xScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.x)])
+      .range([0, innerWidth]);
 
-  g.append("g")
-    .attr("transform", `translate(0,${innerHeight})`)
-    .call(xAxis);
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.y)])
+      .range([innerHeight, 0]); // Note: inverted for SVG coordinates
 
-  g.append("g")
-    .call(yAxis);
+    // 4. Create and append axes
+    const xAxis = d3.axisBottom(xScale);
+    const yAxis = d3.axisLeft(yScale);
 
-  // 5. Bind data and create visual elements
-  g.selectAll("circle")
-    .data(data)
-    .join("circle")
-    .attr("cx", d => xScale(d.x))
-    .attr("cy", d => yScale(d.y))
-    .attr("r", 5)
-    .attr("fill", "steelblue");
-}
+    g.append("g")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(xAxis);
 
-// Call when data changes
-drawVisualization(myData);
+    g.append("g")
+      .call(yAxis);
+
+    // 5. Bind data and create visual elements
+    g.selectAll("circle")
+      .data(data)
+      .join("circle")
+      .attr("cx", d => xScale(d.x))
+      .attr("cy", d => yScale(d.y))
+      .attr("r", 5)
+      .attr("fill", "steelblue");
+  });
+</script>
+
+<svg bind:this={svgElement} width="800" height="400"></svg>
 ```
 
 ### 4. Implement responsive sizing
 
-Make visualisations responsive to container size:
+Make visualisations responsive to container size using Svelte 5:
 
-```javascript
-function setupResponsiveChart(containerId, data) {
-  const container = document.getElementById(containerId);
-  const svg = d3.select(`#${containerId}`).append('svg');
+```svelte
+<script>
+  import * as d3 from 'd3';
+  import { onMount } from 'svelte';
 
-  function updateChart() {
-    const { width, height } = container.getBoundingClientRect();
-    svg.attr('width', width).attr('height', height);
+  let { data = [] } = $props();
 
-    // Redraw visualisation with new dimensions
-    drawChart(data, svg, width, height);
-  }
+  let containerElement = $state();
+  let svgElement = $state();
+  let width = $state(800);
+  let height = $state(400);
 
-  // Update on initial load
-  updateChart();
+  $effect(() => {
+    if (!containerElement) return;
 
-  // Update on window resize
-  window.addEventListener('resize', updateChart);
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      width = entry.contentRect.width;
+      height = entry.contentRect.height;
+    });
 
-  // Return cleanup function
-  return () => window.removeEventListener('resize', updateChart);
-}
+    observer.observe(containerElement);
 
-// Usage:
-// const cleanup = setupResponsiveChart('chart-container', myData);
-// cleanup(); // Call when component unmounts or element removed
-```
-
-Or use ResizeObserver for more direct container monitoring:
-
-```javascript
-function setupResponsiveChartWithObserver(svgElement, data) {
-  const observer = new ResizeObserver(() => {
-    const { width, height } = svgElement.getBoundingClientRect();
-    d3.select(svgElement)
-      .attr('width', width)
-      .attr('height', height);
-
-    // Redraw visualisation
-    drawChart(data, d3.select(svgElement), width, height);
+    return () => observer.disconnect();
   });
 
-  observer.observe(svgElement.parentElement);
-  return () => observer.disconnect();
-}
+  $effect(() => {
+    if (!data || data.length === 0 || !svgElement) return;
+
+    const svg = d3.select(svgElement);
+    svg.selectAll("*").remove();
+
+    // Use reactive width and height for dimensions
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
+
+    // Draw visualisation with current dimensions...
+  });
+</script>
+
+<div bind:this={containerElement} class="chart-container" style="width: 100%; height: 100%;">
+  <svg bind:this={svgElement} {width} {height}></svg>
+</div>
+```
+
+Or use a simpler approach with window resize:
+
+```svelte
+<script>
+  import * as d3 from 'd3';
+
+  let { data = [] } = $props();
+
+  let svgElement = $state();
+  let innerWidth = $state(typeof window !== 'undefined' ? window.innerWidth : 800);
+
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      innerWidth = window.innerWidth;
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  });
+
+  $effect(() => {
+    if (!data || data.length === 0 || !svgElement) return;
+    // Redraw chart using innerWidth...
+  });
+</script>
 ```
 
 ## Common visualisation patterns
 
 ### Bar chart
 
-```javascript
-function drawBarChart(data, svgElement) {
-  if (!data || data.length === 0) return;
+```svelte
+<script>
+  import * as d3 from 'd3';
 
-  const svg = d3.select(svgElement);
-  svg.selectAll("*").remove();
+  let { data = [] } = $props();
+  let svgElement = $state();
 
-  const width = 800;
-  const height = 400;
-  const margin = { top: 20, right: 30, bottom: 40, left: 50 };
-  const innerWidth = width - margin.left - margin.right;
-  const innerHeight = height - margin.top - margin.bottom;
+  $effect(() => {
+    if (!data || data.length === 0 || !svgElement) return;
 
-  const g = svg.append("g")
-    .attr("transform", `translate(${margin.left},${margin.top})`);
+    const svg = d3.select(svgElement);
+    svg.selectAll("*").remove();
 
-  const xScale = d3.scaleBand()
-    .domain(data.map(d => d.category))
-    .range([0, innerWidth])
-    .padding(0.1);
+    const width = 800;
+    const height = 400;
+    const margin = { top: 20, right: 30, bottom: 40, left: 50 };
+    const innerWidth = width - margin.left - margin.right;
+    const innerHeight = height - margin.top - margin.bottom;
 
-  const yScale = d3.scaleLinear()
-    .domain([0, d3.max(data, d => d.value)])
-    .range([innerHeight, 0]);
+    const g = svg.append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  g.append("g")
-    .attr("transform", `translate(0,${innerHeight})`)
-    .call(d3.axisBottom(xScale));
+    const xScale = d3.scaleBand()
+      .domain(data.map(d => d.category))
+      .range([0, innerWidth])
+      .padding(0.1);
 
-  g.append("g")
-    .call(d3.axisLeft(yScale));
+    const yScale = d3.scaleLinear()
+      .domain([0, d3.max(data, d => d.value)])
+      .range([innerHeight, 0]);
 
-  g.selectAll("rect")
-    .data(data)
-    .join("rect")
-    .attr("x", d => xScale(d.category))
-    .attr("y", d => yScale(d.value))
-    .attr("width", xScale.bandwidth())
-    .attr("height", d => innerHeight - yScale(d.value))
-    .attr("fill", "steelblue");
-}
+    g.append("g")
+      .attr("transform", `translate(0,${innerHeight})`)
+      .call(d3.axisBottom(xScale));
 
-// Usage:
-// drawBarChart(myData, document.getElementById('chart'));
+    g.append("g")
+      .call(d3.axisLeft(yScale));
+
+    g.selectAll("rect")
+      .data(data)
+      .join("rect")
+      .attr("x", d => xScale(d.category))
+      .attr("y", d => yScale(d.value))
+      .attr("width", xScale.bandwidth())
+      .attr("height", d => innerHeight - yScale(d.value))
+      .attr("fill", "steelblue");
+  });
+</script>
+
+<svg bind:this={svgElement} width="800" height="400"></svg>
 ```
 
 ### Line chart
@@ -786,7 +844,7 @@ g.selectAll(".tick line")
 **Issue**: Transitions not working
 - Call `.transition()` before attribute changes
 - Ensure elements have unique keys for proper data binding
-- Check that useEffect dependencies include all changing data
+- Check that $effect dependencies are correctly tracked (Svelte 5 auto-tracks reactive state)
 
 **Issue**: Responsive sizing not working
 - Use ResizeObserver or window resize listener
@@ -809,12 +867,12 @@ Contains detailed reference materials:
 
 ### assets/
 
-Contains boilerplate templates:
+Contains boilerplate Svelte 5 templates:
 
-- `chart-template.js` - Starter template for basic chart
-- `interactive-template.js` - Template with tooltips, zoom, and interactions
+- `chart-template.svelte` - Starter template for basic chart using Svelte 5 runes
+- `interactive-template.svelte` - Template with tooltips, zoom, and interactions using Svelte 5
 - `sample-data.json` - Example datasets for testing
 
-These templates work with vanilla JavaScript, React, Vue, Svelte, or any other JavaScript environment. Adapt them as needed for your specific framework.
+These templates are built for Svelte 5 and use the modern runes syntax (`$state`, `$effect`, `$props`). Import them directly into your Svelte 5 application.
 
 To use these resources, read the relevant files when detailed guidance is needed for specific visualisation types or patterns.
